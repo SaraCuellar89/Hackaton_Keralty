@@ -1,0 +1,55 @@
+.contenedor_tabla_pacientes {
+    margin: 20px 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.contenedor_tabla_pacientes > table {
+    width: 90%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+}
+
+.contenedor_tabla_pacientes th {
+    font-size: 18px;
+    font-weight: 500;
+    background-color: #1B8C6C;
+    color: white;
+    padding: 20px 0px;
+    text-align: center;
+}
+
+.contenedor_tabla_pacientes td {
+    padding: 10px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 20px 0px;
+}
+
+.contenedor_tabla_pacientes tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.contenedor_tabla_pacientes tr:hover {
+    background-color: #ddd;
+}
+
+.contenedor_tabla_pacientes td > input[type="checkbox"] {
+    transform: scale(1.2);
+    margin-bottom: 5px;
+}
+
+.contenedor_tabla_pacientes td > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.contenedor_tabla_pacientes td > div > p {
+    color: grey;
+    margin: 0;
+    font-size: 12px;
+}
