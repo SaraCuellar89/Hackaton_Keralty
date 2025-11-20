@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 20-11-2025 a las 00:12:06
+-- Tiempo de generación: 20-11-2025 a las 10:11:18
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de datos: `keralty`
+-- Base de datos: `keralty_2`
 --
 
 -- --------------------------------------------------------
@@ -29,16 +29,17 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `paciente` (
   `id_paciente` int(5) NOT NULL,
-  `nombre` varchar(40) DEFAULT NULL
+  `nombre` varchar(40) DEFAULT NULL,
+  `cama` int(3) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `paciente`
 --
 
-INSERT INTO `paciente` (`id_paciente`, `nombre`) VALUES
-(1, 'Carlos Carvajal'),
-(2, 'Marta Mejia');
+INSERT INTO `paciente` (`id_paciente`, `nombre`, `cama`) VALUES
+(1, 'Carlos Carvajal', 304),
+(2, 'Marta Mejia', 302);
 
 -- --------------------------------------------------------
 
@@ -59,12 +60,12 @@ CREATE TABLE `paciente_informacion` (
 --
 
 INSERT INTO `paciente_informacion` (`paciente_id`, `tipo_informacion_id`, `fecha`, `hora`, `estado`) VALUES
-(1, 1, NULL, NULL, 0),
+(1, 1, '2025-11-20', '04:09:18', 1),
 (1, 2, NULL, NULL, 0),
 (1, 3, NULL, NULL, 0),
 (1, 4, NULL, NULL, 0),
 (2, 1, NULL, NULL, 0),
-(2, 2, NULL, NULL, 0),
+(2, 2, '2025-11-20', '04:10:17', 1),
 (2, 3, NULL, NULL, 0),
 (2, 4, NULL, NULL, 0);
 
@@ -76,7 +77,7 @@ INSERT INTO `paciente_informacion` (`paciente_id`, `tipo_informacion_id`, `fecha
 
 CREATE TABLE `tipo_informacion` (
   `id_tipo_informacion` int(5) NOT NULL,
-  `tipo_informacion` varchar(30) DEFAULT NULL
+  `tipo_informacion` varchar(40) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -86,7 +87,7 @@ CREATE TABLE `tipo_informacion` (
 INSERT INTO `tipo_informacion` (`id_tipo_informacion`, `tipo_informacion`) VALUES
 (1, 'Documentos Entregados'),
 (2, 'Paz y Salvo'),
-(3, 'Llevado a sala/Alta a domicili'),
+(3, 'Llevado a sala/Alta a domicilio'),
 (4, 'Habitacion Disponible');
 
 -- --------------------------------------------------------
@@ -106,7 +107,7 @@ CREATE TABLE `ultima_actualizacion` (
 --
 
 INSERT INTO `ultima_actualizacion` (`id_ultima_actualizacion`, `fecha`, `hora`) VALUES
-(1, '2025-11-19', '18:03:44');
+(1, '2025-11-20', '04:10:17');
 
 --
 -- Índices para tablas volcadas

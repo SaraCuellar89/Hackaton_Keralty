@@ -2,27 +2,31 @@ const express = require('express')
 const mysql = require('mysql2/promise')
 const cors = require('cors')
 
+
+// ------------------- Middleware -------------------
 const app = express()
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cors()); 
 
 
+// ------------------- Conexion Base de Datos -------------------
 const db = {
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'keralty'
+    host: 'mysql-base1cine.alwaysdata.net',
+    user: 'base1cine_admin',
+    password: 'contrasena_1234',
+    database: 'base1cine_keralty'
 }
 
 
 
-// --------- Rutas ---------
+// ------------------- Rutas -------------------
 app.get('/', (req, res) => {
     res.send('Hola desde el backend')
 })
 
-//Listar tipos de informacion
+
+//Obtener ultima actualizacion
 app.get('/obtener_utlima_actualizacion', async (req, res) => {
     let conect;
     try {
@@ -46,7 +50,7 @@ app.get('/obtener_utlima_actualizacion', async (req, res) => {
     } finally {
         if (conect) await conect.end();
     }
-});
+})
 
 
 //Listar tipos de informacion
@@ -73,7 +77,7 @@ app.get('/listar_tipos_informacion', async (req, res) => {
     } finally {
         if (conect) await conect.end();
     }
-});
+})
 
 
 //Listar pacientes
@@ -86,6 +90,7 @@ app.get('/listar_pacientes', async (req, res) => {
             SELECT 
                 p.id_paciente,
                 p.nombre,
+                p.cama,
                 t.id_tipo_informacion,
                 t.tipo_informacion,
                 COALESCE(pi.estado, 0) AS estado,
@@ -206,7 +211,7 @@ app.post('/deseleccionar', async(req, res) => {
 
 
 
-// --------- Escucha del puerto ---------
+// ------------------- Escucha del puerto -------------------
 app.listen(3001, () => {
   console.log('Servidor corriendo en el puerto http://localhost:3001');
 });
