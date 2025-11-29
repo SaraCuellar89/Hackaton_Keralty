@@ -1,5 +1,6 @@
 # El CARE - Centro Integrado de Eficiencia para la Alta del Paciente Cardiovascular
 
+ - Sistema para gestionar y agilizar el proceso de egreso de pacientes cardiovasculares mediante un dashboard interactivo y un agente automatizado. 
 ---
 
 ## Tecnologías Utilizadas para el DashBoard
