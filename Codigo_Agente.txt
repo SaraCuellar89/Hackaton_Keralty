@@ -1,0 +1,1614 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "77766292-7ad1-4413-a120-e5b2fc27c0df",
+      "name": "Check Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1536,
+        2112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "googleSheetId",
+              "value": "<__PLACEHOLDER_VALUE__Google Sheet ID__>",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "sheetName",
+              "value": "<__PLACEHOLDER_VALUE__Sheet Name__>",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "dischargeDateField",
+              "value": "<__PLACEHOLDER_VALUE__Column name for discharge date__>",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "patientNameField",
+              "value": "<__PLACEHOLDER_VALUE__Column name for patient name__>",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "doctorTelegramChatId",
+              "value": "<__PLACEHOLDER_VALUE__Doctor Telegram Chat ID__>",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "earlyDischargeTeamChatId",
+              "value": "<__PLACEHOLDER_VALUE__Early Discharge Team Telegram Chat ID__>",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "patientEmailField",
+              "value": "<__PLACEHOLDER_VALUE__Column name for patient email__>",
+              "type": "string"
+            },
+            {
+              "id": "id-10",
+              "name": "hospitalManagementEmail",
+              "value": "<__PLACEHOLDER_VALUE__Hospital management email__>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "20974036-a92c-4c50-968c-a7e34e30c989",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1760,
+        2112
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=11oKOHFtGp-RYEnfkRWtEdnvjS2eXVUJTpHvgav4WKOc\n",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "EGRESOSCV",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "9f0fe585-70db-42f0-945e-7bd032f52b8f",
+      "name": "Read Patient Database",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1984,
+        2112
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OUkzcT4BLDWZDlFj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1) Leer la fecha original del Google Sheet\nconst rawDate = $input.item.json.Fecha_Egreso_Planeada;\n\n// Si no hay fecha -> no se puede calcular\nif (!rawDate) {\n  return {\n    ...$input.item.json,\n    daysToDischarge: null,\n    isPreDischarge: false,\n  };\n}\n\n// 2) Limpiar la hora si existe (remover \" 0:00:00\")\nconst cleaned = rawDate.split(' ')[0]; // nos quedamos con \"20/11/2025\"\n\n// 3) Detectar si usa \"/\" o \"-\"\nlet parts = cleaned.includes('/') ? cleaned.split('/') : cleaned.split('-');\n\nlet day, month, year;\n\n// Formato DD/MM/YYYY\nif (parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {\n  day = Number(parts[0]);\n  month = Number(parts[1]);\n  year = Number(parts[2]);\n\n// Formato YYYY-MM-DD\n} else if (parts[0].length === 4) {\n  year = Number(parts[0]);\n  month = Number(parts[1]);\n  day = Number(parts[2]);\n} else {\n  // No se reconoce\n  return {\n    ...$input.item.json,\n    daysToDischarge: null,\n    isPreDischarge: false,\n  };\n}\n\n// 4) Crear la fecha válida en JavaScript\nconst dischargeDate = new Date(year, month - 1, day);\ndischargeDate.setHours(0, 0, 0, 0);\n\n// 5) Fecha actual\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\n// 6) Calcular diferencia en días\nconst diffMillis = dischargeDate - today;\nconst daysToDischarge = Math.round(diffMillis / (1000 * 60 * 60 * 24));\n\n// 7) ¿Es pre-egreso (1 día antes)?\nconst isPreDischarge = daysToDischarge === 1;\n\n// 8) Retornar todo\nreturn {\n  ...$input.item.json,\n  daysToDischarge,\n  isPreDischarge,\n};\n"
+      },
+      "id": "e1cbbb1a-396b-4353-892c-f49b736be352",
+      "name": "Calculate Days to Discharge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        2112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.isPreDischarge }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "746bea89-2cef-470d-a326-9c1b1186777e",
+      "name": "Is Pre-Discharge (-1 Day)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2432,
+        2112
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Read Patient Database').first().json.chat_id}}\n",
+        "text": "=Estimado Dr./Dra.,  El paciente {{$json.Paciente}} ID: {{$json.Identificacion}} – {{$json.Admision}}  ¿Puede confirmar si efectivamente habrá pre-egreso?  Por favor seleccione una opción:",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Iniciar proceso de egreso",
+                    "additionalFields": {
+                      "callback_data": "egreso_manana"
+                    }
+                  },
+                  {
+                    "text": "Posponer egreso",
+                    "additionalFields": {
+                      "callback_data": "egreso_posponer"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "b72d4f06-d233-4739-bfbe-570aee89e73d",
+      "name": "Send Telegram to Doctor",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2656,
+        2112
+      ],
+      "webhookId": "c9f5e277-2cf8-476f-8abb-84af19d2e906",
+      "credentials": {
+        "telegramApi": {
+          "id": "dUh4hgbBjGUiAZo5",
+          "name": "TOKENSARA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Workflow Configuration').first().json.earlyDischargeTeamChatId }}",
+        "text": "=🚨 ACTIVACIÓN EQUIPO ALTA TEMPRANA\n\nPaciente: {{ $json[$('Workflow Configuration').first().json.patientNameField] }}\nFecha de egreso: {{ $json[$('Workflow Configuration').first().json.dischargeDateField] }}\n\nSe confirma pre-egreso. Por favor proceder con el protocolo de alta temprana.",
+        "additionalFields": {}
+      },
+      "id": "14667708-bb1a-4273-99d2-2acef3584318",
+      "name": "Notify Early Discharge Team via Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        2720
+      ],
+      "webhookId": "9f3f8a55-920d-43cf-a79b-6002337e925c",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json[$('Workflow Configuration').first().json.patientEmailField] }}",
+        "subject": "Información sobre su próximo egreso hospitalario",
+        "emailType": "text",
+        "message": "=Estimado/a {{ $json[$('Workflow Configuration').first().json.patientNameField] }},\n\nNos complace informarle que su egreso hospitalario está programado para mañana, {{ $json[$('Workflow Configuration').first().json.dischargeDateField] }}.\n\nNuestro equipo de alta temprana se pondrá en contacto con usted para coordinar los detalles.\n\nSaludos cordiales,\nEquipo Hospitalario",
+        "options": {}
+      },
+      "id": "be1d582c-1ae4-4354-adeb-b0a1f76fb780",
+      "name": "Notify Patient via Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3376,
+        3104
+      ],
+      "webhookId": "05bc29df-2a0c-43d2-b016-daac08edee56",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "B8UfFeIlf6IHG6Vb",
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'egreso_manana';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "0e2e63f7-e5c8-4424-9ad5-9f48f9735e49",
+      "name": "Check Doctor Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        2672
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.doctorConfirmed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "b829d4a6-848a-471c-9c59-e99435160738",
+      "name": "Doctor Confirmed Discharge?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2800,
+        2688
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.Telefono_Jefe }}",
+        "text": "=🏥 ACTIVACIÓN ALTA TEMPRANA\n\nEquipo {{ $json.Jefe_Enfermeria }},\n\nPaciente: {{ $json.Paciente }}\nFecha de egreso: {{ $json.Fecha_Egreso_Planeada }}\nID: {{ $json.Identificacion }}\nH:  {{ $json.Admision }}\n\nSe confirma egreso para mañana. Por favor coordinar con el equipo de enfermería.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Traslado a Alta Temprana o Domicilio ",
+                    "additionalFields": {
+                      "callback_data": "traslado_alta"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "10d2dc70-9bcb-4f01-8e45-1b5ceceb799b",
+      "name": "Notify Jefe Enfermeria",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        3504
+      ],
+      "webhookId": "052d3a23-8785-417d-b314-a719dc240129",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.Telefono_TS }}",
+        "text": "=💼 ACTIVACIÓN ALTA TEMPRANA - TRABAJO SOCIAL\n\nTrabajo Social {{ $json.Trabajo_Social }},\n\nPaciente: {{ $json.Paciente }}\nFecha de egreso: {{ $json.Fecha_Egreso_Planeada }}\n\nSe confirma egreso para mañana. Por favor coordinar documentación y recursos necesarios.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Papeles Entregados",
+                    "additionalFields": {
+                      "callback_data": "papeles_ok"
+                    }
+                  },
+                  {
+                    "text": "Pendiente",
+                    "additionalFields": {
+                      "callback_data": "papeles_pendiente"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "ed915040-bd34-4a27-97bd-90eb06c8c770",
+      "name": "Notify Trabajo Social",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        2912
+      ],
+      "webhookId": "6c66a383-37b0-4359-989c-015f50d60558",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.Telefono_Facturacion }}",
+        "text": "=💰 ACTIVACIÓN ALTA TEMPRANA - FACTURACIÓN\n\nFacturación {{ $json.Facturacion }},\n\nPaciente: {{ $json.Paciente }}\nFecha de egreso: {{ $json.Fecha_Egreso_Planeada }}\n\nSe confirma egreso para mañana. Por favor preparar facturación y cierre de cuenta.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Paz y Salvo Listo",
+                    "additionalFields": {
+                      "callback_data": "pazysalvo_ok"
+                    }
+                  },
+                  {
+                    "text": "Pendiente",
+                    "additionalFields": {
+                      "callback_data": "pazysalvo_pendiente"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "644db233-def9-45fd-9ceb-56d8bcfbddab",
+      "name": "Notify Facturacion",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        2544
+      ],
+      "webhookId": "5d895334-e7c6-4562-8165-0475e7e7d790",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.Telefono_Farmacia }}",
+        "text": "=💊 ACTIVACIÓN ALTA TEMPRANA - FARMACIA\n\nFarmacia {{ $json.Farmacia }},\n\nPaciente: {{ $json.Paciente }}\nFecha de egreso: {{ $json.Fecha_Egreso_Planeada }}\nAnticoagulante: {{ $json.Anticoagulante }}\n\nSe confirma egreso para mañana. Por favor preparar medicamentos para el alta.",
+        "additionalFields": {}
+      },
+      "id": "eab34d75-691f-44bb-95f2-95c5c9661e2d",
+      "name": "Notify Farmacia",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3392,
+        3312
+      ],
+      "webhookId": "d98500c7-fdad-47f4-a44f-e8dc60412213",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for Doctor Confirmation').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst doctorConfirmed  = callbackData === 'egreso_manana';\nconst doctorRejected   = callbackData === 'egreso_posponer';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tdoctorConfirmed,\n\tdoctorRejected\n};\n"
+      },
+      "id": "420dd213-566c-4f30-8655-9ad0758e137e",
+      "name": "Get Patient Data from Wait",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        2672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "=11oKOHFtGp-RYEnfkRWtEdnvjS2eXVUJTpHvgav4WKOc/edit?gid=0#gid=0",
+          "mode": "id"
+        },
+        "title": "BASE TEAM ALTAS",
+        "options": {}
+      },
+      "id": "3afad20b-701d-471a-98df-036a8fff2f2a",
+      "name": "Update Patient Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2896,
+        2384
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OUkzcT4BLDWZDlFj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1792,
+        2624
+      ],
+      "id": "0081c12e-bf0c-4b50-9d44-c23db3b68b9f",
+      "name": "Telegram Trigger",
+      "webhookId": "f1d0f02b-181b-4eb7-8638-6bccf20f9083",
+      "retryOnFail": true,
+      "notesInFlow": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "dUh4hgbBjGUiAZo5",
+          "name": "TOKENSARA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "7b4b72eb-6b68-43e9-9b69-1b74799d719e",
+      "name": "Wait for Doctor Confirmation",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2176,
+        2656
+      ],
+      "webhookId": "926b1739-d378-4987-8f1b-13aaf014dbf1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for JEFE').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "922e9eb5-6276-421a-b178-3e086007565d",
+      "name": "Get Patient Data from Wait1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3728,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "987107e1-72c9-4777-98d0-9a9244be1611",
+      "name": "Wait for JEFE",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3552,
+        3488
+      ],
+      "webhookId": "f7a7fba1-6219-4402-935f-2b2a99e5076b"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4128,
+        3488
+      ],
+      "id": "38f41c39-f4d0-41f0-977e-8907c1509e15",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "53ee48ba-0273-4e37-aff7-681ac2e931be",
+      "name": "Check Jefe Responde",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3936,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for Tratante').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "fb45fad1-f738-4c49-9062-610ffcaf87cd",
+      "name": "Get Patient Data from Wait2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        2352
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        2352
+      ],
+      "id": "6a7dfa90-325b-491e-b48f-adb23caf9d14",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "c520e049-e610-43cb-b848-5f4ed6f79dbe",
+      "name": "Check Jefe Responde1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3968,
+        2352
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=📋 ACTIVACIÓN DE ALTA TEMPRANA – TRATANTE\n\nApreciado Dr./Dra. {{ $json.Gestion }},\n\nEl paciente: {{ $json.Paciente }}\ncon fecha de egreso programada para: {{ $json.Fecha_Egreso_Planeada }}\n\nSe activa la ruta de **Alta Temprana** a la hora 0 (07:00 AM) del día del egreso.\n\nPor favor realizar:\n🩺 Valoración clínica prioritaria\n📝 Nota de egreso en historia clínica SOFÍA\n✔ Confirmación de estabilidad para egreso\n\nTu respuesta oportuna ayuda a garantizar un proceso seguro y eficiente.\n\nMuchas gracias.",
+        "additionalFields": {}
+      },
+      "id": "d742fd97-1897-4161-9fd9-17f3b01f5861",
+      "name": "Tratante",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        2368
+      ],
+      "webhookId": "64afe9ed-cc97-4df6-bd9a-988074a4af40",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for JEFE2').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "30b6317d-2335-41b6-bee8-645d709d7ed2",
+      "name": "Get Patient Data from Wait3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "354a349a-5b09-4115-a57e-62630e796a9b",
+      "name": "Wait for JEFE2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3600,
+        2720
+      ],
+      "webhookId": "e2fb608a-52ce-43ee-ad47-78ba84d7a980"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4176,
+        2720
+      ],
+      "id": "eca1bd01-c668-4309-a335-69f866b61662",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "af600d37-6289-4eb0-b3f4-3b6303f835e0",
+      "name": "Check Jefe Responde2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for JEFE3').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "5efcf22c-098e-4781-a3c8-92c84fdc923c",
+      "name": "Get Patient Data from Wait4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3808,
+        2928
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "f342001b-0db6-4332-acf2-e9d0d7b42612",
+      "name": "Wait for JEFE3",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3632,
+        2928
+      ],
+      "webhookId": "c8c77fb1-f98d-4265-8e26-66b8a19e9800"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4208,
+        2928
+      ],
+      "id": "c6d332ff-ea28-4bb5-bddc-deb19aab62ba",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "0f97cf00-136f-4a3c-970d-eaa95bb005c2",
+      "name": "Check Jefe Responde3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4016,
+        2928
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for JEFE4').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "eb7ef7a1-8423-4e52-943c-a656f0cd6601",
+      "name": "Get Patient Data from Wait5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "e104caba-cc53-4c7e-95da-318fd4645bed",
+      "name": "Wait for JEFE4",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3584,
+        2544
+      ],
+      "webhookId": "125d1e63-02d4-491f-b200-ce4cea9f6449"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        2544
+      ],
+      "id": "d87a9291-abee-4763-99eb-3f6288cea128",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "21e46882-0c71-430a-883e-69a8ec0bf483",
+      "name": "Check Jefe Responde4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3968,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "48ee2282-ea0c-4fee-a5a3-ca03195f11fd",
+      "name": "Wait for Tratante",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3584,
+        2352
+      ],
+      "webhookId": "c7620875-1075-451c-a88c-233d10eaf7d6"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.Telefono_Gestion }}",
+        "text": "=📋 ACTIVACIÓN ALTA TEMPRANA - GESTIÓN\n\nGestión {{ $json.Gestion }},\n\nPaciente: {{ $json.Paciente }}\nFecha de egreso: {{ $json.Fecha_Egreso_Planeada }}\n\nSe confirma egreso para mañana. Por favor coordinar logística y seguimiento.",
+        "additionalFields": {}
+      },
+      "id": "fb029f1c-960a-4877-852f-912c87252470",
+      "name": "Notify Casa Limpia",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3376,
+        3728
+      ],
+      "webhookId": "91c5400d-de48-45f5-9278-6bffd085d5d2",
+      "credentials": {
+        "telegramApi": {
+          "id": "XXdRjGiYFuab48QR",
+          "name": "Telegram account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for JEFE1').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "774ab94a-e06f-4e6a-a2a3-77f4619d7454",
+      "name": "Get Patient Data from Wait6",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3744,
+        3728
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "2b7aa9e7-2346-4da8-9adc-38da46f28dea",
+      "name": "Wait for JEFE1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3568,
+        3728
+      ],
+      "webhookId": "aacded16-0106-4315-b4be-916f5611e094"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4144,
+        3728
+      ],
+      "id": "a1fe6c42-b2fd-4b42-96d0-d05ca1d2fa9d",
+      "name": "If5"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "671ba3b5-fdcd-4160-ad77-0a3d1f2600df",
+      "name": "Check Jefe Responde5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3952,
+        3728
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log (\"Proceso iniciado\")\n\n// 1. Obtener la data del paciente guardada antes del WAIT\nconst waitData = $('Wait for JEFE5').item.json;\n\n// 2. Obtener la respuesta del médico del Telegram Trigger\nconst update = $input.item.json;\n\n// 3. Extraer callback y texto de la respuesta del médico\nconst callbackData = update.callback_query?.data || '';\nconst messageText = update.message?.text || '';\n\n// 4. Interpretar la respuesta del médico\nconst jefeConfirmed  = callbackData === 'traslado_alta';\n\n// 5. Retornar la data combinada para los siguientes pasos del flujo\nreturn {\n\t// Paciente + configuración\n\t...waitData,\n\n\t// Datos de Telegram\n\trawUpdate: update,\n\tcallbackData,\n\tmessageText,\n\n\t// Bandera para el IF posterior\n\tjefeConfirmed,\n};\n"
+      },
+      "id": "41ceb858-ed3b-489c-863b-e8bb0c34a658",
+      "name": "Get Patient Data from Wait7",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3744,
+        3312
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "resumeAmount": 24,
+        "options": {}
+      },
+      "id": "9a142e9d-ce74-4c2a-b3f3-d2fa61550747",
+      "name": "Wait for JEFE5",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3568,
+        3312
+      ],
+      "webhookId": "882ba75c-60d0-4bae-9fd3-2cf5169e7e8f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee513ce4-0165-4420-a1d9-946d7b209408",
+              "leftValue": true,
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4144,
+        3312
+      ],
+      "id": "f1ab69c4-b9cc-4724-9bb3-74637488c625",
+      "name": "If6"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if doctor confirmed discharge\nconst callbackData = $input.item.json.callback_query?.data || '';\n\n// Check if response indicates confirmation (egreso_manana callback)\nconst isConfirmed = callbackData === 'traslado_alta';\n\nreturn {\n  ...($input.item.json),\n  doctorConfirmed: Boolean(isConfirmed) \n};"
+      },
+      "id": "5d24dad6-b934-4b44-b517-933158e00d57",
+      "name": "Check Jefe Responde6",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3952,
+        3312
+      ]
+    }
+  ],
+  "connections": {
+    "Check Daily": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Read Patient Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Patient Database": {
+      "main": [
+        [
+          {
+            "node": "Calculate Days to Discharge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Days to Discharge": {
+      "main": [
+        [
+          {
+            "node": "Is Pre-Discharge (-1 Day)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Pre-Discharge (-1 Day)?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram to Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram to Doctor": {
+      "main": [
+        []
+      ]
+    },
+    "Notify Early Discharge Team via Telegram": {
+      "main": [
+        [
+          {
+            "node": "Wait for JEFE2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Patient via Email": {
+      "main": [
+        []
+      ]
+    },
+    "Check Doctor Response": {
+      "main": [
+        [
+          {
+            "node": "Doctor Confirmed Discharge?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doctor Confirmed Discharge?": {
+      "main": [
+        [
+          {
+            "node": "Notify Early Discharge Team via Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Jefe Enfermeria",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Trabajo Social",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Facturacion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Farmacia",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Casa Limpia",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Patient via Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Patient Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tratante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Jefe Enfermeria": {
+      "main": [
+        [
+          {
+            "node": "Wait for JEFE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Trabajo Social": {
+      "main": [
+        [
+          {
+            "node": "Wait for JEFE3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Facturacion": {
+      "main": [
+        [
+          {
+            "node": "Wait for JEFE4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Farmacia": {
+      "main": [
+        [
+          {
+            "node": "Wait for JEFE5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait": {
+      "main": [
+        [
+          {
+            "node": "Check Doctor Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Wait for Doctor Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Doctor Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait1": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for JEFE": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait2": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tratante": {
+      "main": [
+        [
+          {
+            "node": "Wait for Tratante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait3": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for JEFE2": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait4": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for JEFE3": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde3": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait5": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for JEFE4": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde4": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Tratante": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Casa Limpia": {
+      "main": [
+        [
+          {
+            "node": "Wait for JEFE1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait6": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for JEFE1": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde5": {
+      "main": [
+        [
+          {
+            "node": "If5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Data from Wait7": {
+      "main": [
+        [
+          {
+            "node": "Check Jefe Responde6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for JEFE5": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Data from Wait7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jefe Responde6": {
+      "main": [
+        [
+          {
+            "node": "If6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "196bb8bd7d0aef09127bd11fb94c21a7663a85c0be638307d30b6cec489554f3"
+  }
+}
